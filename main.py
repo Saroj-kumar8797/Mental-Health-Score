@@ -1,17 +1,15 @@
 import joblib
+import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
-import pandas as pd
 from typing import Literal
 from fastapi.middleware.cors import CORSMiddleware
 
-
 model = joblib.load('Mental_Health_Model.pkl')
+top_countries = ['Other','India','USA','Canada','Australia','UK','Germany','Mexico','Turkey','France']
 
 app = FastAPI()
 
-
-# This code is used for connecting the frontend UI with FastAPI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,114 +18,57 @@ app.add_middleware(
 )
 
 
-# Pydantic model
+#A first Pydantic Model
 class StudentData(BaseModel):
-
-    Age: int = Field(..., ge=10, le=100)
-
-    Gender: Literal['Male', 'Female']
-
-    Country: str
-
-    Academic_Level: Literal[
-        'Undergraduate',
-        'Graduate',
-        'High School'
-    ]
-
-    Most_Used_Platform: Literal[
-        'Facebook',
-        'LinkedIn',
-        'Instagram',
-        'Snapchat',
-        'Twitter',
-        'YouTube',
-        'TikTok',
-        'LINE',
-        'KakaoTalk',
-        'VKontakte',
-        'WhatsApp',
-        'WeChat'
-    ]
-
-    Purpose_Of_Use: Literal[
-        'Networking',
-        'Education',
-        'Entertainment',
-        'News'
-    ]
-
-    Avg_Daily_Usage_Hours: float = Field(..., ge=0, le=24)
-
-    Daily_Unlocks: int = Field(..., ge=0)
-
-    Study_Hours: float = Field(..., ge=0, le=24)
-
-    Physical_Activity_Hours: float = Field(..., ge=0, le=24)
-
-    Sleep_Hours_Per_Night: float = Field(..., ge=0, le=24)
-
-    Stress_Level: Literal[
-        'Medium',
-        'Low',
-        'Very High',
-        'High'
-    ]
+    age                     : int = Field(..., ge=10, le=100)
+    gender                  : Literal['Male', 'Female']
+    country                 : str
+    academic_level          : Literal['Undergraduate', 'Graduate', 'High School']
+    most_used_platform      : Literal['Facebook', 'LinkedIn', 'Instagram', 'Snapchat','Twitter','YouTube', 'TikTok', 'LINE', 'KakaoTalk', 'VKontakte', 'WhatsApp','WeChat']
+    purpose_of_use          : Literal['Networking', 'Education', 'Entertainment', 'News']
+    avg_daily_usage_hours   : float = Field(..., ge=0, le=24)
+    daily_unlocks           : int   = Field(..., ge=0)
+    study_hours             : float = Field(..., ge=0, le=24)
+    physical_activity_hours : float = Field(..., ge=0, le=24)
+    sleep_hours_per_night   : float = Field(..., ge=0, le=24)
+    stress_level            : Literal['Medium', 'Low', 'Very High', 'High']
 
 
-# Response model
+
+
+# Describe what we send back
 class PredictionResponse(BaseModel):
-    predicted_mental_health_score: float
+    predicted_mental_health_score:float
+    #6.777777 -> float
 
 
-@app.get("/")
+
+
+@app.get('/')
 def greet():
-    return {
-        "message": "Welcome to the Mental Health Prediction API!"
-    }
+    return {'Welcome to My Machine Learning Project Guys'}
 
 
-top_countries = [
-    'Other',
-    'India',
-    'USA',
-    'Canada',
-    'Australia',
-    'UK',
-    'Germany',
-    'Mexico',
-    'Turkey',
-    'France'
-]
-
-
-@app.post("/predict", response_model=PredictionResponse)
+@app.post('/predict', response_model=PredictionResponse) #6.77777
 def predict(data: StudentData):
+   
+   country_group = data.country if data.country in top_countries else "Other"
 
-    country_group = (
-        data.Country
-        if data.Country in top_countries
-        else 'Other'
-    )
+   input_row = pd.DataFrame([{
+        'Age'                       :data.age,
+        'Gender'                    :data.gender,
+        'Country'                   :data.country,
+        'Academic_Level'            :data.academic_level,
+        'Most_Used_Platform'        :data.most_used_platform,
+        'Purpose_Of_Use'            :data.purpose_of_use,
+        'Avg_Daily_Usage_Hours'     :data.avg_daily_usage_hours,
+        'Daily_Unlocks'             :data.daily_unlocks,
+        'Study_Hours'               :data.study_hours,
+        'Physical_Activity_Hours'   :data.physical_activity_hours,
+        'Sleep_Hours_Per_Night'     :data.sleep_hours_per_night,
+        'Stress_Level'              :data.stress_level,
+        'Grouped_country'           :country_group
+   }])
 
-    input_row = pd.DataFrame([{
-        "Age": data.Age,
-        "Gender": data.Gender,
-        "Country": data.Country,
-        "Academic_Level": data.Academic_Level,
-        "Most_Used_Platform": data.Most_Used_Platform,
-        "Purpose_Of_Use": data.Purpose_Of_Use,
-        "Avg_Daily_Usage_Hours": data.Avg_Daily_Usage_Hours,
-        "Daily_Unlocks": data.Daily_Unlocks,
-        "Study_Hours": data.Study_Hours,
-        "Physical_Activity_Hours": data.Physical_Activity_Hours,
-        "Sleep_Hours_Per_Night": data.Sleep_Hours_Per_Night,
-        "Stress_Level": data.Stress_Level,
-        "Grouped_country": country_group
-    }])
-
-    prediction = model.predict(input_row)[0]
-
-    return PredictionResponse(
-        predicted_mental_health_score=round(float(prediction))
-    )
+   prediction = model.predict(input_row)[0] #6.77
+   return PredictionResponse(predicted_mental_health_score=round(float(prediction),2))
